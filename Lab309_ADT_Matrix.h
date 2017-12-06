@@ -6,8 +6,9 @@
 #include <stdexcept>
 #include <math.h>
 
-#define COORDINATE_X 0
-#define COORDINATE_Y 1
+#define _X 0
+#define _Y 1
+#define _Z 2
 
 namespace lab309 {
 

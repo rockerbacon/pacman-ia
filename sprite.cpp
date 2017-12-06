@@ -19,15 +19,15 @@ lab309::Vector<float> lab309::Sprite::getPos (void) const {
 }
 
 int lab309::Sprite::getXPos (void) const {
-	return this->pos[COORDINATE_X];
+	return this->pos[_X];
 }
 
 int lab309::Sprite::getYPos (void) const {
-	return this->pos[COORDINATE_Y];
+	return this->pos[_Y];
 }
 
 lab309::Vector<float> lab309::Sprite::getCenter (void) const {
-	return { this->pos[COORDINATE_X]+this->displayRect.w/2.0f, this->pos[COORDINATE_Y]+this->displayRect.h/2.0f };
+	return { this->pos[_X]+this->displayRect.w/2.0f, this->pos[_Y]+this->displayRect.h/2.0f };
 }
 
 int lab309::Sprite::getDisplayWidth (void) const {
@@ -40,8 +40,8 @@ int lab309::Sprite::getDisplayHeight (void) const {
 
 /*SETTERS*/
 void lab309::Sprite::setSpritePos (const lab309::Vector<float> &pos) {
-	this->rect.x = (int)(pos[COORDINATE_X]*this->rect.w);
-	this->rect.y = (int)(pos[COORDINATE_Y]*this->rect.h);
+	this->rect.x = (int)(pos[_X]*this->rect.w);
+	this->rect.y = (int)(pos[_Y]*this->rect.h);
 }
 
 void lab309::Sprite::setPos (const lab309::Vector<float> &pos) {
@@ -50,8 +50,8 @@ void lab309::Sprite::setPos (const lab309::Vector<float> &pos) {
 
 /*METHODS*/
 void lab309::Sprite::blitTo (const lab309::Window &window) {
-	this->displayRect.x = this->pos[COORDINATE_X];
-	this->displayRect.y = this->pos[COORDINATE_Y];
+	this->displayRect.x = this->pos[_X];
+	this->displayRect.y = this->pos[_Y];
 	SDL_BlitScaled(this->texture, &this->rect, window.surface, &this->displayRect);
 }
 
@@ -61,12 +61,12 @@ void lab309::Sprite::translate (const Vector<float> &offset) {
 
 int lab309::collision (const lab309::Sprite &a, const lab309::Sprite &b) {
 	int colx, coly;
-	int	bxmax = b.pos[COORDINATE_X]+b.displayRect.w,
-		bymax = b.pos[COORDINATE_Y]+b.displayRect.h,
-		axmax = a.pos[COORDINATE_X]+a.displayRect.w,
-		aymax = a.pos[COORDINATE_Y]+a.displayRect.h;
+	int	bxmax = b.pos[_X]+b.displayRect.w,
+		bymax = b.pos[_Y]+b.displayRect.h,
+		axmax = a.pos[_X]+a.displayRect.w,
+		aymax = a.pos[_Y]+a.displayRect.h;
 		
-	colx = bxmax > a.pos[COORDINATE_X] && b.pos[COORDINATE_X] < axmax;
-	coly = bymax > a.pos[COORDINATE_Y] && b.pos[COORDINATE_Y] < aymax;
+	colx = bxmax > a.pos[_X] && b.pos[_X] < axmax;
+	coly = bymax > a.pos[_Y] && b.pos[_Y] < aymax;
 	return colx && coly;
 }
