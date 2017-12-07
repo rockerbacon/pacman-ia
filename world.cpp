@@ -34,11 +34,11 @@ Vector<int> World::mapToNavmesh (const Vector<float> &pos) const {
 
 Vector<float> World::mapToPixel (const Vector<int> &navPos) const {
 	Vector<float> pixel(2);
-	int gridWidth = this->window->getWidth()/this.navmesh.getColums();
-	int gridHeight = this->window->getHeight()/this.navmesh.getLines();
+	int gridWidth = this->window->getWidth()/this->navmesh.getColums();
+	int gridHeight = this->window->getHeight()/this->navmesh.getLines();
 	
 	pixel[_X] = pos[_X]*gridWidth;
-	pixel[_Y] = (this.navmesh.getLines() - pos[_Y] - 1) * gridHeight;
+	pixel[_Y] = (this->navmesh.getLines() - pos[_Y] - 1) * gridHeight;
 	
 	return pixel;
 }
@@ -54,9 +54,9 @@ Vector<int> World::add (int id, const Vector<float> &pos) {
 std::list<Vector<float>> World::getFromMesh (int content) const {
 	Vector<int> pos(2);
 	std::list<Vector<float>> l;
-	for (pos[_X] = 0; pos[_X] < this.navmesh.getColums(); pos[_X]++) {
-		for (pos[_Y] = 0; pos[_Y] < this.navmesh.getLines(); pos[_Y]++) {
-			if ((this.navmesh[pos] & content) == content) {
+	for (pos[_X] = 0; pos[_X] < this->navmesh.getColums(); pos[_X]++) {
+		for (pos[_Y] = 0; pos[_Y] < this->navmesh.getLines(); pos[_Y]++) {
+			if ((this->navmesh[pos] & content) == content) {
 				l.push_front(mapToPixel(pos));
 			}
 		}	
@@ -77,9 +77,9 @@ bool World::readFromFile (const char *filePath) {
 	input >> meshWidth;
 	input >> meshHeight;
 	
-	this.navmesh = Matrix<Cell>(meshHeight, meshWidth);
-	for (size_t i = 0; i < this.navmesh.getLines(); i++) {
-		for (size_t j = 0; j < this.navmesh.getColums(); j++) {
+	this->navmesh = Matrix<Cell>(meshHeight, meshWidth);
+	for (size_t i = 0; i < this->navmesh.getLines(); i++) {
+		for (size_t j = 0; j < this->navmesh.getColums(); j++) {
 			//ignorar espacos, tabs e fins de linha
 			do {
 				input >> c;
@@ -87,22 +87,22 @@ bool World::readFromFile (const char *filePath) {
 			//preencher celula da malha
 			switch(c) {
 				case WALL_CELL:
-					this.navmesh[i][j] = WALL_ID;
+					this->navmesh[i][j] = WALL_ID;
 				break;
 				case PACMAN_CELL:
-					this.navmesh[i][j] = PACMAN_ID|PATHWAY_ID;
+					this->navmesh[i][j] = PACMAN_ID|PATHWAY_ID;
 				break;
 				case GHOST_CELL:
-					this.navmesh[i][j] = GHOST_ID|PATHWAY_ID;
+					this->navmesh[i][j] = GHOST_ID|PATHWAY_ID;
 				break;
 				case PILL_CELL:
-					this.navmesh[i][j] = PILL_ID|PATHWAY_ID;
+					this->navmesh[i][j] = PILL_ID|PATHWAY_ID;
 				break;
 				case SUPERPILL_CELL:
-					this.navmesh[i][j] = SUPERPILL_ID|PATHWAY_ID;
+					this->navmesh[i][j] = SUPERPILL_ID|PATHWAY_ID;
 				break;
 				default:
-					this.navmesh[i][j] = 0;
+					this->navmesh[i][j] = 0;
 				break;
 			} 
 		}
