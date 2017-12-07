@@ -49,6 +49,10 @@ namespace lab309 {
 			World (const Window &window, size_t navmeshWidth, size_t navmeshHeight);
 			World (const Window &window);
 			
+			/*GETTERS*/
+			int getCellWidth (void) const;
+			int getCellHeight (void) const;
+			
 			Vector<int> add (int id, const Vector<float> &pos);	//adiciona objeto a malha de navegacao retornando a posicao na malha em que foi adicionado
 			
 			std::list<Vector<float>> getFromMesh (int content) const;	//retorna uma lista com a posicao (em pixels) de todos as celulas da malha que contenham as caracteristicas em content

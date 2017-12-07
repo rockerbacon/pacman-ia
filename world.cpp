@@ -22,8 +22,8 @@ Vector<int> World::mapToNavmesh (const Vector<float> &pos) const {
 		return {-1, -1};
 	}
 	int i, j;
-	int cellWidth = this->window->getWidth()/this->navmesh.getColums();
-	int cellHeight = this->window->getHeight()/this->navmesh.getLines();
+	int cellWidth = this->getCellWidth();
+	int cellHeight = this->getCellHeight();
 	Vector<int> v = (Vector<int>)pos;
 	
 	v[_X] = (v[_X] - v[_X] % cellWidth)/cellWidth;
@@ -34,13 +34,21 @@ Vector<int> World::mapToNavmesh (const Vector<float> &pos) const {
 
 Vector<float> World::mapToPixel (const Vector<int> &navPos) const {
 	Vector<float> pixel(2);
-	int gridWidth = this->window->getWidth()/this->navmesh.getColums();
-	int gridHeight = this->window->getHeight()/this->navmesh.getLines();
+	int gridWidth = this->getCellWidth();
+	int gridHeight = this->getCellHeight();
 	
 	pixel[_X] = pos[_X]*gridWidth;
 	pixel[_Y] = (this->navmesh.getLines() - pos[_Y] - 1) * gridHeight;
 	
 	return pixel;
+}
+
+int World::getCellWidth (void) const {
+	return this->window->getWidth()/this->navmesh.getColums();
+}
+
+int World::getCellHeight (void) const {
+	return this->window->getHeight()/this->navmesh.getLines();
 }
 
 Vector<int> World::add (int id, const Vector<float> &pos) {
