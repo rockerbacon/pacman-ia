@@ -96,15 +96,15 @@ int main (int argc, char **args) {
 	
 	background = new Sprite(texture_background, texture_background->w, texture_background->h, WINDOW_WIDTH, WINDOW_HEIGHT);
 	wall = new Sprite(texture_wall, texture_wall->w, texture_wall->h, world->getCellWidth(), world->getCellHeight());
-	pill = new Sprite(texture_pill, texture_pill->w, texture_pill->h, world->getCellWidth(), world->getCellHeight());
+	pill = new Sprite(texture_pill, texture_pill->w, texture_pill->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8);
 	superpill = new Sprite(texture_superpill, texture_superpill->w, texture_superpill->h, world->getCellWidth(), world->getCellHeight());
 	
 	//load agents
 	draw = world->getFromMesh(PACMAN_ID);
-	pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth(), world->getCellHeight(), world, PACMAN_ID, PACMAN_SPEED, 0, draw.front());
+	pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, PACMAN_ID, PACMAN_SPEED, 0, draw.front());
 	draw = world->getFromMesh(GHOST_ID);
 	for (Vector<float> g : draw) {
-		ghosts.push_front(new Object(texture_ghost, texture_ghost->w, texture_ghost->h, world->getCellWidth(), world->getCellHeight(), world, GHOST_ID, GHOST_SPEED, 0, g));
+		ghosts.push_front(new Object(texture_ghost, texture_ghost->w, texture_ghost->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, GHOST_ID, GHOST_SPEED, 0, g));
 	}
 		
 	running = true;

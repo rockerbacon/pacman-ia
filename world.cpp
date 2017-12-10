@@ -182,8 +182,9 @@ Vector<float> Object::getMoveDirection (void) const {
 
 void Object::move (Sprite *wall, double elapsedTime) {
 	Vector<float> oldPosition = this->getPos();
+	Vector<float> corners[4];
+	Vector<int> nextCell;
 	Vector<int> oldCell = this->currentCell;
-	Vector<int> nextCell = this->currentCell+this->moveDirection;
 	
 	//std::cout << this->speed*elapsedTime << std::endl;	//debug
 	this->translate(this->speed*elapsedTime*this->moveDirection);
@@ -196,14 +197,25 @@ void Object::move (Sprite *wall, double elapsedTime) {
 		this->world->add(this->id, this->currentCell);
 	}
 	
-
-	if (this->world->getCell(nextCell).contents & WALL_ID) {
-		wall->setPos(this->world->mapToPixel(nextCell));
-		if (collision((Sprite)(*this), *wall)) {
-			//fallback because it's not possible to move inside a wall
-			std::cout << "wall" << std::endl;	//debug
-			this->setPos(oldPosition);
-			this->currentCell = oldCell;
+	corners[0] = this->getPos()+Vector<float>({COLLISION_BOX_X_TOLERANCE, COLLISION_BOX_Y_TOLERANCE});
+	corners[1] = this->getPos()+Vector<float>({(float)this->getDisplayWidth()-COLLISION_BOX_X_TOLERANCE, COLLISION_BOX_Y_TOLERANCE});
+	corners[2] = this->getPos()+Vector<float>({COLLISION_BOX_X_TOLERANCE, (float)this->getDisplayHeight()-COLLISION_BOX_Y_TOLERANCE});
+	corners[3] = corners[1]+Vector<float>({-COLLISION_BOX_X_TOLERANCE, (float)this->getDisplayHeight()-COLLISION_BOX_Y_TOLERANCE});
+	
+	//check collision in any of the corners
+	for (size_t i = 0; i < 4; i++) {
+		nextCell = this->world->mapToNavmesh(corners[i])+this->moveDirection;
+		if (this->world->getCell(nextCell).contents & WALL_ID) {
+			wall->setPos(this->world->mapToPixel(nextCell));
+			if (collision((Sprite)(*this), *wall)) {
+				//fallback because it's not possible to move inside a wall
+				//std::cout << "wall" << std::endl;	//debug
+				this->setPos(oldPosition);
+				this->currentCell = oldCell;
+				break;
+			}
 		}
 	}
+
+
 }

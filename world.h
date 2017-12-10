@@ -24,6 +24,9 @@
 
 #define TRAIL_DECAY_RATE 0.2
 
+#define COLLISION_BOX_X_TOLERANCE 15
+#define COLLISION_BOX_Y_TOLERANCE 15
+
 namespace lab309 {
 	
 	class World {
