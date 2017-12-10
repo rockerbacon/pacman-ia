@@ -4,6 +4,7 @@
 #include "window.h"
 #include "sprite.h"
 #include <list>
+#include <vector>
 
 //IDS DE OBJETOS
 #define PACMAN_ID		0x1
@@ -21,28 +22,33 @@
 #define PILL_CELL		'.'
 #define SUPERPILL_CELL	'*'
 
+#define TRAIL_DECAY_RATE 0.2
+
 namespace lab309 {
 	
 	class World {
 		
-		public class Cell {
-			private:
+		public: class Cell {
+			public:
 				int contents;
+				float trail;
+				int trailTimeStamp;
 				
 			public:
-				Cell (void) : contents(0) {}
-				Cell (int contents) : contents(contents) {}
+				Cell (void);
+				Cell (int contents);
+
 		};
 		
 		//INTERNAL METHODS
-		private:
+		public:
 			Vector<int> mapToNavmesh (const Vector<float> &pos) const;
 			Vector<float> mapToPixel (const Vector<int> &navPos) const;
 		
 		//ATRIBUTES
 		private:
 			Matrix<Cell> navmesh;
-			Window *window;
+			const Window *window;
 			
 		//METHODS
 		public:
@@ -52,10 +58,13 @@ namespace lab309 {
 			/*GETTERS*/
 			int getCellWidth (void) const;
 			int getCellHeight (void) const;
+			Cell getCell (const Vector<int> &pos) const;
 			
-			Vector<int> add (int id, const Vector<float> &pos);	//adiciona objeto a malha de navegacao retornando a posicao na malha em que foi adicionado
-			
+			/*METHODS*/
+			void add (int id, const Vector<int> &pos);	//adiciona objeto a malha de navegacao retornando a posicao na malha em que foi adicionado
 			std::list<Vector<float>> getFromMesh (int content) const;	//retorna uma lista com a posicao (em pixels) de todos as celulas da malha que contenham as caracteristicas em content
+			
+			void remove (int id, const Vector<int> &pos);
 			
 			/*
 			 * Le uma malha de um arquivo
@@ -67,6 +76,33 @@ namespace lab309 {
 			 */
 			bool readFromFile (const char *filePath);
 	
+	};
+	
+	class Object : public Sprite {
+		private:
+			World *world;
+			int id;
+			float speed;	//in pixels/s
+			int viewDistance;	//in cells
+			Vector<int> currentCell;
+			Vector<float> moveDirection;
+			
+		public:
+			/*CONSTRUCTORS*/
+			Object (SDL_Surface *texture, int rectWidth, int rectHeight, int displayWidth, int displayHeight, World *world, int id, float speed, int viewDistance, const Vector<float> &initialPos);
+			
+			/*SETTERS*/
+			void setMoveDirection (const Vector<float> &moveDirection);
+			
+			/*GETTERS*/
+			float getSpeed (void) const;
+			int getViewDistance (void) const;
+			Vector<int> getCurrentCell (void) const;
+			Vector<float> getMoveDirection (void) const;
+			
+			/*METHODS*/
+			void move (Sprite *wall, double elapsedTime);	//time in seconds
+			
 	};
 	
 };

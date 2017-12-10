@@ -28,7 +28,7 @@ namespace lab309 {
 			/*GETTERS*/
 			int getWidth (void) const;
 			int getHeight (void) const;
-			double getTimeDelta (void) const;
+			double getTimeDelta (void) const;	//returns time since last window update in seconds
 			
 			/*METHODS*/
 			SDL_Surface* loadTexture (const char *imgPath);
