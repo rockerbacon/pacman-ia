@@ -174,10 +174,10 @@ Object::Object (SDL_Surface *texture, int rectWidth, int rectHeight, int display
 }
 
 void Object::setMoveDirection (const Vector<float> &moveDirection) {
-	if (fabs(moveDirection[_X]) > fabs(moveDirection[_Y])) {
+	if (fabs(moveDirection[_X]) > fabs(moveDirection[_Y]) && moveDirection[_X] != 0) {
 		this->moveDirection[_X] = moveDirection[_X]/fabs(moveDirection[_X]);
 		this->moveDirection[_Y] = 0.0f;
-	} else {
+	} else if (moveDirection[_Y] != 0) {
 		this->moveDirection[_X] = 0.0f;
 		this->moveDirection[_Y] = moveDirection[_Y]/fabs(moveDirection[_Y]);
 	}

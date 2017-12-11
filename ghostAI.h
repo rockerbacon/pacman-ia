@@ -25,6 +25,7 @@ namespace lab309 {
 			//sets the direction the ghost should move
 			void think (unsigned long int currentTime);
 			void move (unsigned long int currentTime, double elapsedTime);
+			void flee (const Vector<int> &pacmanPos, unsigned long int currentTime);
 			
 	};
 

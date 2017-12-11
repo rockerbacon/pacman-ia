@@ -15,7 +15,7 @@
 
 #define SUPERPILL_DURATION 10000
 
-#define SUPERSPEED_MULT 2.0f
+#define SUPERSPEED_MULT 1.4f
 
 #define PACMAN_SPEED WINDOW_WIDTH*WINDOW_HEIGHT*0.0003
 #define GHOST_SPEED PACMAN_SPEED*0.8
@@ -79,6 +79,8 @@ int main (int argc, char **args) {
 	bool super = false;
 	unsigned int superTimeStamp;
 	unsigned int killStreak;
+	
+	int endGame = 0;
 			
 	bool running;
 	std::list<Vector<float>> draw;
@@ -134,13 +136,18 @@ int main (int argc, char **args) {
 		//std::cout << "handle input" << std::endl;	//debug
 		timeSeed();
 		running = handleInput(pacman);
+		endGame = 0;
 		
 		pacman->move(wall, SDL_GetTicks(), window->getTimeDelta());
 		//std::cout << "move pacman" << std::endl;	//debug
 		
 		for (std::list<Ghost*>::iterator i = ghosts.begin(); i != ghosts.end(); i++) {
 			//std::cout << "ghost think" << std::endl;	//debug
-			(*i)->think(SDL_GetTicks());
+			if (!super) {
+				(*i)->think(SDL_GetTicks());
+			} else {
+				(*i)->flee(world->mapToNavmesh(pacman->getCenter()), SDL_GetTicks());
+			}	
 			//std::cout << "ghost move" << std::endl;	//debug
 			(*i)->move(SDL_GetTicks(), window->getTimeDelta());
 			
@@ -175,6 +182,7 @@ int main (int argc, char **args) {
 			super = false;
 			for (Ghost *i : ghosts) {
 				i->setSpeed(i->getSpeed()*SUPERSPEED_MULT);
+				i->setMoveDirection({0.0f, 0.0f});
 			}
 		}
 		
@@ -189,6 +197,9 @@ int main (int argc, char **args) {
 		
 		//draw pills
 		draw = world->getFromMesh(PILL_ID);
+		if (draw.size() == 0) {
+			endGame++;
+		}
 		for (Vector<float> i : draw) {
 			pill->setPos(i);
 			if (collision(*pill, *pacman)) {
@@ -202,6 +213,9 @@ int main (int argc, char **args) {
 		
 		//draw superpills
 		draw = world->getFromMesh(SUPERPILL_ID);
+		if (draw.size() == 0) {
+			endGame++;
+		}
 		for (Vector<float> i : draw) {
 			superpill->setPos(i);
 			if (!super && collision(*superpill, *pacman)) {
@@ -212,6 +226,7 @@ int main (int argc, char **args) {
 				killStreak = 0;
 				for (Ghost *i : ghosts) {
 					i->setSpeed(i->getSpeed()/SUPERSPEED_MULT);
+					i->setMoveDirection(Vector<float>({0.0f, 0.0f}));
 				}
 				std::cout << "Score: " << score << std::endl;
 			} else {
@@ -230,6 +245,11 @@ int main (int argc, char **args) {
 		//draw ghosts
 		for (Object *i : ghosts) {
 			i->blitTo(*window);
+		}
+		
+		if (endGame == 2) {
+			running = false;
+			std::cout << "VICTORY" << std::endl;
 		}
 		
 		window->update();

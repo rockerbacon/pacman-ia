@@ -206,3 +206,92 @@ void Ghost::move (unsigned long int currentTime, double elapsedTime) {
 		this->world->setGhostTrail(currentTime, this->currentCell);
 	}
 }
+
+int manhattan (const Vector<int> &a, const Vector<int> &b) {
+	return abs(a[_X]-b[_X]) + abs(a[_Y]-b[_Y]);
+}
+
+void Ghost::flee (const Vector<int> &pacmanPos, unsigned long int currentTime) {
+
+	Vector<float> corners[4];
+	bool cornersEqual;
+	float xOffset = (float)this->getDisplayWidth()*CELL_DETECTION_X_TOLERANCE;
+	float yOffset = (float)this->getDisplayHeight()*CELL_DETECTION_Y_TOLERANCE;
+	size_t i;
+	
+	corners[0] = this->getCenter()+Vector<float>({xOffset, yOffset});
+	corners[1] = this->getCenter()+Vector<float>({-xOffset, yOffset});
+	corners[2] = this->getCenter()+Vector<float>({xOffset, -yOffset});
+	corners[3] = this->getCenter()+Vector<float>({-xOffset, -yOffset});
+	
+	//std::cout << "corners equal" << std::endl;	//debug
+	cornersEqual = true;
+	i = 0;
+	while (cornersEqual && i < 3) {
+		if (this->world->mapToNavmesh(corners[i]) != this->world->mapToNavmesh(corners[i+1])) {
+			//std::cout<<"corners not equal" << std::endl;	//debug
+			cornersEqual = false;
+		}
+		i++;
+	}
+	
+	if (this->moveDirection == Vector<float>({0.0f, 0.0f}) || cornersEqual && this->currentCell != this->previousCell) {
+		std::list<SearchingCell> cells;
+		SearchingCell expanding;
+		Vector<int> directions[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+		Vector<int> beginning;
+		Vector<int> direction;
+		Matrix<Vector<int>*> explorationMap(world->getWidth(), world->getHeight());
+		Vector<int> found;
+	
+		//std::cout << "starting map" << std::endl;	//debug
+		for (size_t i = 0; i < explorationMap.getLines(); i++) {
+			for (size_t j = 0; j < explorationMap.getColums(); j++) {
+				explorationMap[i][j] = NULL;
+			}
+		}
+	
+		//std::cout << "map started" << std::endl;	//debug
+		beginning = this->world->mapToNavmesh(this->getCenter());
+		cells.push_back({beginning, 0, 0});
+		explorationMap[beginning] = new Vector<int>(beginning);
+		found = beginning;
+		while (cells.size() > 0) {
+			//std::cout << "expanding cell" << std::endl;	//debug
+			expanding = cells.front();
+			cells.pop_front();
+		
+			if (manhattan(pacmanPos, found) < manhattan(pacmanPos, expanding.pos)) {
+				found = expanding.pos;
+			}
+		
+			if (expanding.depth == GHOST_VIEW_DISTANCE) {
+				//std::cout << "max search depth reached" << std::endl;	//debug
+				break;
+			}
+		
+			for (size_t i = 0; i < 4; i++) {
+				SearchingCell add = {expanding.pos+directions[i], expanding.dontExpand, expanding.depth+1};
+				World::Cell c = world->getCell(add.pos);
+				if ((c.contents & WALL_ID) == 0 && explorationMap[add.pos] == NULL && currentTime - c.ghostTrailTimeStamp > IGNORE_GHOST_TRAIL) {
+					cells.push_back(add);
+					explorationMap[add.pos] = new Vector<int>(expanding.pos);
+				}	
+			}
+		}
+	
+		//std::cout << "search ended" << std::endl;	//debug
+		while (beginning != *explorationMap[found]) {
+			found = *explorationMap[found];
+		}
+		//std::cout << "cell found" << std::endl;	//debug
+		for (size_t i = 0; i < explorationMap.getLines(); i++) {
+			for (size_t j = 0; j < explorationMap.getColums(); j++) {
+				delete(explorationMap[i][j]);
+			}
+		}
+		direction = found-beginning;
+		//std::cout << "direction found" << std::endl;	//debug
+		this->moveDirection = Vector<float>(direction);
+	}	
+}
