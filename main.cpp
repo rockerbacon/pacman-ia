@@ -2,14 +2,23 @@
 #include "world.h"
 #include <iostream>
 #include <SDL2/SDL.h>
+#include "ghostAI.h"
+#include "random.h"
+#include <math.h>
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 640
 
-#define PACMAN_SPEED WINDOW_WIDTH*WINDOW_HEIGHT*0.0003
-#define GHOST_SPEED PACMAN_SPEED
+#define PILL_SCORE 300
+#define SUPERPILL_SCORE 500
+#define GHOST_KILL_SCORE 200
 
-#define GHOST_VIEWDISTANCE 10
+#define SUPERPILL_DURATION 10000
+
+#define SUPERSPEED_MULT 2.0f
+
+#define PACMAN_SPEED WINDOW_WIDTH*WINDOW_HEIGHT*0.0003
+#define GHOST_SPEED PACMAN_SPEED*0.8
 
 using namespace lab309;
 
@@ -50,17 +59,26 @@ int main (int argc, char **args) {
 				*texture_pill,
 				*texture_superpill,
 				*texture_pacman,
-				*texture_ghost;
+				*texture_ghost,
+				*texture_superpacman;
 				
 	Sprite	*background,
 			*wall,
 			*pill,
-			*superpill;
+			*superpill,
+			*superpacman;
 	Object	*pacman;
-	std::list<Object*> ghosts;
+	Vector<float> pacmanResetPos;
+	std::list<Ghost*> ghosts;
 			
 	Window *window;
 	World *world;
+	
+	unsigned int score = 0;
+	unsigned int lives = 3;
+	bool super = false;
+	unsigned int superTimeStamp;
+	unsigned int killStreak;
 			
 	bool running;
 	std::list<Vector<float>> draw;
@@ -93,26 +111,72 @@ int main (int argc, char **args) {
 	texture_superpill = window->loadTexture("img/superpill.png");
 	texture_pacman = window->loadTexture("img/pacman.png");
 	texture_ghost = window->loadTexture("img/ghost.png");
+	texture_superpacman = window->loadTexture("img/superpacman.png");
 	
 	background = new Sprite(texture_background, texture_background->w, texture_background->h, WINDOW_WIDTH, WINDOW_HEIGHT);
 	wall = new Sprite(texture_wall, texture_wall->w, texture_wall->h, world->getCellWidth(), world->getCellHeight());
 	pill = new Sprite(texture_pill, texture_pill->w, texture_pill->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8);
 	superpill = new Sprite(texture_superpill, texture_superpill->w, texture_superpill->h, world->getCellWidth(), world->getCellHeight());
+	superpacman = new Sprite(texture_superpacman, texture_superpacman->w, texture_superpacman->h, world->getCellWidth()*0.82, world->getCellHeight()*0.82);
 	
 	//load agents
 	draw = world->getFromMesh(PACMAN_ID);
-	pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, PACMAN_ID, PACMAN_SPEED, 0, draw.front());
+	pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, PACMAN_ID, PACMAN_SPEED, draw.front());
+	pacmanResetPos = pacman->getPos();
 	draw = world->getFromMesh(GHOST_ID);
 	for (Vector<float> g : draw) {
-		ghosts.push_front(new Object(texture_ghost, texture_ghost->w, texture_ghost->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, GHOST_ID, GHOST_SPEED, 0, g));
+		ghosts.push_front(new Ghost(texture_ghost, texture_ghost->w, texture_ghost->h, world->getCellWidth()*0.75, world->getCellHeight()*0.75, world, GHOST_ID, GHOST_SPEED, g));
 	}
 		
 	running = true;
 	window->update();
 	while (running) {
+		//std::cout << "handle input" << std::endl;	//debug
+		timeSeed();
 		running = handleInput(pacman);
 		
-		pacman->move(wall, window->getTimeDelta());
+		pacman->move(wall, SDL_GetTicks(), window->getTimeDelta());
+		//std::cout << "move pacman" << std::endl;	//debug
+		
+		for (std::list<Ghost*>::iterator i = ghosts.begin(); i != ghosts.end(); i++) {
+			//std::cout << "ghost think" << std::endl;	//debug
+			(*i)->think(SDL_GetTicks());
+			//std::cout << "ghost move" << std::endl;	//debug
+			(*i)->move(SDL_GetTicks(), window->getTimeDelta());
+			
+			if (collision(**i, *pacman)) {
+				if (!super) {
+					lives--;
+					if (lives > 0) {
+						world->remove(PACMAN_ID, world->mapToNavmesh(pacman->getCenter()));
+						world->setTrail(0, world->mapToNavmesh(pacman->getCenter()));
+						delete(pacman);
+						pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, PACMAN_ID, PACMAN_SPEED, pacmanResetPos);
+						std::cout << "Lives: " << lives << std::endl;
+					} else {
+						std::cout << "GAME OVER" << std::endl;
+						goto END;
+					}
+				} else {
+					std::list<Ghost*>::iterator prev = i;
+					prev--;
+					delete(*i);
+					ghosts.erase(i);
+					i = prev;
+					killStreak++;
+					score += pow(GHOST_KILL_SCORE, killStreak);
+					std::cout << "Score: " << score << std::endl;
+				}	
+			}
+		}
+		
+		//wear super effect off
+		if (super && SDL_GetTicks() - superTimeStamp > SUPERPILL_DURATION) {
+			super = false;
+			for (Ghost *i : ghosts) {
+				i->setSpeed(i->getSpeed()*SUPERSPEED_MULT);
+			}
+		}
 		
 		//draw background
 		background->blitTo(*window);
@@ -127,18 +191,41 @@ int main (int argc, char **args) {
 		draw = world->getFromMesh(PILL_ID);
 		for (Vector<float> i : draw) {
 			pill->setPos(i);
-			pill->blitTo(*window);
+			if (collision(*pill, *pacman)) {
+				score += PILL_SCORE;
+				world->remove(PILL_ID, world->mapToNavmesh(i));
+				std::cout << "Score: " << score << std::endl;
+			} else {
+				pill->blitTo(*window);
+			}	
 		}
 		
 		//draw superpills
 		draw = world->getFromMesh(SUPERPILL_ID);
 		for (Vector<float> i : draw) {
 			superpill->setPos(i);
-			superpill->blitTo(*window);
+			if (!super && collision(*superpill, *pacman)) {
+				score += SUPERPILL_SCORE;
+				world->remove(SUPERPILL_ID, world->mapToNavmesh(i));
+				super = true;
+				superTimeStamp = SDL_GetTicks();
+				killStreak = 0;
+				for (Ghost *i : ghosts) {
+					i->setSpeed(i->getSpeed()/SUPERSPEED_MULT);
+				}
+				std::cout << "Score: " << score << std::endl;
+			} else {
+				superpill->blitTo(*window);
+			}
 		}
 		
 		//draw pacman
-		pacman->blitTo(*window);	
+		if (!super) {
+			pacman->blitTo(*window);
+		} else {
+			superpacman->setPos(pacman->getPos());
+			superpacman->blitTo(*window);
+		}
 		
 		//draw ghosts
 		for (Object *i : ghosts) {
@@ -147,6 +234,8 @@ int main (int argc, char **args) {
 		
 		window->update();
 	}
+	
+	END:
 	
 	//clear memory
 	delete(window);
@@ -158,12 +247,14 @@ int main (int argc, char **args) {
 	SDL_FreeSurface(texture_superpill);
 	SDL_FreeSurface(texture_pacman);
 	SDL_FreeSurface(texture_ghost);
+	SDL_FreeSurface(texture_superpacman);
 	
 	delete(background);
 	delete(wall);
 	delete(pill);
 	delete(superpill);
 	delete(pacman);
+	delete(superpacman);
 	for (Object *i : ghosts) {
 		delete(i);
 	}

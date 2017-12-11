@@ -8,12 +8,14 @@ using namespace lab309;
 /*WORLD*/
 World::Cell::Cell (void) {
 	this->contents = 0;
-	this->trail = 0;
+	this->trailTimeStamp = 0;
+	this->ghostTrailTimeStamp = 0;
 }
 
 World::Cell::Cell (int contents) {
 	this->contents = contents;
-	this->trail = 0;
+	this->trailTimeStamp = 0;
+	this->ghostTrailTimeStamp = 0;
 }
 
 World::World (const Window &window, size_t navmeshWidth, size_t navmeshHeight) {
@@ -69,6 +71,14 @@ World::Cell World::getCell (const Vector<int> &pos) const {
 	return Cell(WALL_ID);
 }
 
+size_t World::getWidth (void) const {
+	return this->navmesh.getColums();
+}
+
+size_t World::getHeight (void) const {
+	return this->navmesh.getLines();
+}
+
 void World::add (int id, const Vector<int> &pos) {
 	if (pos[_X] >= 0 && pos[_X] < this->navmesh.getColums() && pos[_Y] >= 0 && pos[_Y] < this->navmesh.getLines()) {
 		this->navmesh[pos].contents |= id;
@@ -96,6 +106,16 @@ void World::remove (int id, const Vector<int> &pos) {
 	}	
 }
 
+void World::setTrail (unsigned long int timeStamp, const Vector<int> &cell) {
+	this->navmesh[cell].trailTimeStamp = timeStamp;
+}
+
+void World::setGhostTrail (unsigned long int timeStamp, const Vector<int> &cell) {
+	if (cell[_X] >= 0 && cell[_Y] >= 0 && cell[_X] < this->getWidth() && cell[_Y] < this->getHeight()) {
+		this->navmesh[cell].ghostTrailTimeStamp = timeStamp;
+	}	
+}
+
 bool World::readFromFile (const char *filePath) {
 	std::fstream input;
 	size_t meshWidth, meshHeight;
@@ -109,7 +129,7 @@ bool World::readFromFile (const char *filePath) {
 	input >> meshWidth;
 	input >> meshHeight;
 	
-	this->navmesh = Matrix<Cell>(meshHeight, meshWidth);
+	this->navmesh = Matrix<Cell>(meshWidth, meshHeight);
 	for (size_t i = 0; i < this->navmesh.getLines(); i++) {
 		for (size_t j = 0; j < this->navmesh.getColums(); j++) {
 			//ignorar espacos, tabs e fins de linha
@@ -144,11 +164,10 @@ bool World::readFromFile (const char *filePath) {
 }
 
 /*OBJECT*/
-Object::Object (SDL_Surface *texture, int rectWidth, int rectHeight, int displayWidth, int displayHeight, World *world, int id, float speed, int viewDistance, const Vector<float> &initialPos) : Sprite(texture, rectWidth, rectHeight, displayWidth, displayHeight) {
+Object::Object (SDL_Surface *texture, int rectWidth, int rectHeight, int displayWidth, int displayHeight, World *world, int id, float speed, const Vector<float> &initialPos) : Sprite(texture, rectWidth, rectHeight, displayWidth, displayHeight) {
 	this->world = world;
 	this->id = id;
 	this->speed = speed;
-	this->viewDistance = viewDistance;
 	this->setPos(initialPos);
 	this->currentCell = world->mapToNavmesh(initialPos);
 	this->moveDirection = {0.0f, 0.0f};
@@ -168,10 +187,6 @@ float Object::getSpeed (void) const {
 	return this->speed;
 }
 
-int Object::getViewDistance (void) const {
-	return this->viewDistance;
-}
-
 Vector<int> Object::getCurrentCell (void) const {
 	return this->currentCell;
 }
@@ -180,9 +195,11 @@ Vector<float> Object::getMoveDirection (void) const {
 	return this->moveDirection;
 }
 
-void Object::move (Sprite *wall, double elapsedTime) {
+void Object::move (Sprite *wall, unsigned long int currentTime, double elapsedTime) {
 	Vector<float> oldPosition = this->getPos();
 	Vector<float> corners[4];
+	float xOffset = (float)this->getDisplayWidth()*COLLISION_BOX_X_TOLERANCE;
+	float yOffset = (float)this->getDisplayHeight()*COLLISION_BOX_Y_TOLERANCE;
 	Vector<int> nextCell;
 	Vector<int> oldCell = this->currentCell;
 	
@@ -195,12 +212,15 @@ void Object::move (Sprite *wall, double elapsedTime) {
 	if (oldCell != this->currentCell) {
 		this->world->remove(this->id, oldCell);
 		this->world->add(this->id, this->currentCell);
+		if (this->id & PACMAN_ID) {
+			this->world->setTrail(currentTime, oldCell);
+		}
 	}
 	
-	corners[0] = this->getPos()+Vector<float>({COLLISION_BOX_X_TOLERANCE, COLLISION_BOX_Y_TOLERANCE});
-	corners[1] = this->getPos()+Vector<float>({(float)this->getDisplayWidth()-COLLISION_BOX_X_TOLERANCE, COLLISION_BOX_Y_TOLERANCE});
-	corners[2] = this->getPos()+Vector<float>({COLLISION_BOX_X_TOLERANCE, (float)this->getDisplayHeight()-COLLISION_BOX_Y_TOLERANCE});
-	corners[3] = corners[1]+Vector<float>({-COLLISION_BOX_X_TOLERANCE, (float)this->getDisplayHeight()-COLLISION_BOX_Y_TOLERANCE});
+	corners[0] = this->getCenter()+Vector<float>({xOffset, yOffset});
+	corners[1] = this->getCenter()+Vector<float>({-xOffset, yOffset});
+	corners[2] = this->getCenter()+Vector<float>({xOffset, -yOffset});
+	corners[3] = this->getCenter()+Vector<float>({-xOffset, -yOffset});
 	
 	//check collision in any of the corners
 	for (size_t i = 0; i < 4; i++) {
@@ -216,6 +236,8 @@ void Object::move (Sprite *wall, double elapsedTime) {
 			}
 		}
 	}
+}
 
-
+void Object::setSpeed (float speed) {
+	this->speed = speed;
 }

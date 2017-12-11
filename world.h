@@ -22,10 +22,8 @@
 #define PILL_CELL		'.'
 #define SUPERPILL_CELL	'*'
 
-#define TRAIL_DECAY_RATE 0.2
-
-#define COLLISION_BOX_X_TOLERANCE 15
-#define COLLISION_BOX_Y_TOLERANCE 15
+#define COLLISION_BOX_X_TOLERANCE 0.17
+#define COLLISION_BOX_Y_TOLERANCE 0.17
 
 namespace lab309 {
 	
@@ -34,8 +32,8 @@ namespace lab309 {
 		public: class Cell {
 			public:
 				int contents;
-				float trail;
-				int trailTimeStamp;
+				unsigned long int trailTimeStamp;
+				unsigned long int ghostTrailTimeStamp;
 				
 			public:
 				Cell (void);
@@ -63,11 +61,18 @@ namespace lab309 {
 			int getCellHeight (void) const;
 			Cell getCell (const Vector<int> &pos) const;
 			
+			size_t getWidth (void) const;	//retorna tamanho da malha do mundo
+			size_t getHeight (void) const;
+			
 			/*METHODS*/
 			void add (int id, const Vector<int> &pos);	//adiciona objeto a malha de navegacao retornando a posicao na malha em que foi adicionado
 			std::list<Vector<float>> getFromMesh (int content) const;	//retorna uma lista com a posicao (em pixels) de todos as celulas da malha que contenham as caracteristicas em content
 			
 			void remove (int id, const Vector<int> &pos);
+			
+			void setTrail(unsigned long int timeStamp, const Vector<int> &cell);
+			
+			void setGhostTrail(unsigned long int timeStamp, const Vector<int> &cell);
 			
 			/*
 			 * Le uma malha de um arquivo
@@ -82,29 +87,28 @@ namespace lab309 {
 	};
 	
 	class Object : public Sprite {
-		private:
+		protected:
 			World *world;
 			int id;
 			float speed;	//in pixels/s
-			int viewDistance;	//in cells
 			Vector<int> currentCell;
 			Vector<float> moveDirection;
 			
 		public:
 			/*CONSTRUCTORS*/
-			Object (SDL_Surface *texture, int rectWidth, int rectHeight, int displayWidth, int displayHeight, World *world, int id, float speed, int viewDistance, const Vector<float> &initialPos);
+			Object (SDL_Surface *texture, int rectWidth, int rectHeight, int displayWidth, int displayHeight, World *world, int id, float speed, const Vector<float> &initialPos);
 			
 			/*SETTERS*/
 			void setMoveDirection (const Vector<float> &moveDirection);
 			
 			/*GETTERS*/
 			float getSpeed (void) const;
-			int getViewDistance (void) const;
 			Vector<int> getCurrentCell (void) const;
 			Vector<float> getMoveDirection (void) const;
 			
 			/*METHODS*/
-			void move (Sprite *wall, double elapsedTime);	//time in seconds
+			void move (Sprite *wall, unsigned long int currentTime, double elapsedTime);	//current time in miliseconds, elapsed time in seconds
+			void setSpeed (float speed);
 			
 	};
 	
