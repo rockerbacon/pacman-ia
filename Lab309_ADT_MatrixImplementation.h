@@ -231,7 +231,18 @@ lab309::Matrix<dataType> lab309::normalize (const Matrix<dataType> &matrix) {
 /*CONSTRUCTORS*/
 template<typename dataType>
 lab309::Vector<dataType>::Vector (const Matrix<dataType> &matrix) throw (std::invalid_argument) : Matrix<dataType>(matrix.lines, 1) {
-	if (matrix.getColums > 1) {
+	if (matrix.getColums() > 1) {
+		throw std::invalid_argument("The matrix has more than one colum, hence it's not a vector");
+	}
+	
+	for (size_t i = 0; i < matrix.lines; i++) {
+		(*this)[i] = *(matrix[i]);
+	}
+}
+
+template<typename dataType> template<typename any>
+lab309::Vector<dataType>::Vector (const Matrix<any> &matrix) throw (std::invalid_argument) : Matrix<dataType>(matrix.lines, 1) {
+	if (matrix.getColums() > 1) {
 		throw std::invalid_argument("The matrix has more than one colum, hence it's not a vector");
 	}
 	

@@ -40,8 +40,8 @@ int lab309::Sprite::getDisplayHeight (void) const {
 
 /*SETTERS*/
 void lab309::Sprite::setSpritePos (const lab309::Vector<float> &pos) {
-	this->rect.x = (int)(pos[_X]*this->rect.w);
-	this->rect.y = (int)(pos[_Y]*this->rect.h);
+	this->rect.x = (int)(pos[_X]*this->rect.w+0.5f);
+	this->rect.y = (int)(pos[_Y]*this->rect.h+0.5f);
 }
 
 void lab309::Sprite::setPos (const lab309::Vector<float> &pos) {
@@ -50,8 +50,8 @@ void lab309::Sprite::setPos (const lab309::Vector<float> &pos) {
 
 /*METHODS*/
 void lab309::Sprite::blitTo (const lab309::Window &window) {
-	this->displayRect.x = this->pos[_X];
-	this->displayRect.y = this->pos[_Y];
+	this->displayRect.x = this->pos[_X] + 0.5f;
+	this->displayRect.y = this->pos[_Y] + 0.5f;
 	SDL_BlitScaled(this->texture, &this->rect, window.surface, &this->displayRect);
 }
 

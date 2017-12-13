@@ -80,6 +80,7 @@ namespace lab309 {
 			Vector (Vector<dataType> &&vector);
 			Vector (size_t lines) : Matrix<dataType>(lines, 1) {}
 			Vector (const Matrix<dataType> &matrix) throw (std::invalid_argument);
+			template<typename any> explicit Vector (const Matrix<any> &matrix) throw (std::invalid_argument);
 			Vector (Matrix<dataType> &&matrix) throw (std::invalid_argument);
 			Vector (const std::initializer_list<dataType> &array);
 			

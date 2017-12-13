@@ -40,9 +40,10 @@ SDL_Surface* lab309::Window::loadTexture (const char *imgPath) {
 }
 
 void lab309::Window::update (void) {
-	double previousUpdate = this->lastUpdate;
+	unsigned int previousUpdate = this->lastUpdate;
 	this->lastUpdate = SDL_GetTicks();
-	if (this->lastUpdate - previousUpdate < this->frameLimit) {
+	if (this->lastUpdate - previousUpdate < this->frameLimit && this->frameLimit-this->lastUpdate+previousUpdate > TIME_RESOLUTION) {
+		//std::cout << "frame control " << this->frameLimit-this->lastUpdate+previousUpdate << std::endl;	//debug
 		SDL_Delay(this->frameLimit-this->lastUpdate+previousUpdate);
 	}
 	//std::cout << (SDL_GetTicks() - previousUpdate)/1000.0 << std::endl;	//debug

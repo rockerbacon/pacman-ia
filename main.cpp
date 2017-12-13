@@ -6,8 +6,8 @@
 #include "random.h"
 #include <math.h>
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 640
+#define WINDOW_WIDTH 1024
+#define WINDOW_HEIGHT 768
 
 #define PILL_SCORE 300
 #define SUPERPILL_SCORE 500
@@ -17,8 +17,8 @@
 
 #define SUPERSPEED_MULT 1.4f
 
-#define PACMAN_SPEED WINDOW_WIDTH*WINDOW_HEIGHT*0.0003
-#define GHOST_SPEED PACMAN_SPEED*0.8
+#define PACMAN_SPEED 2.4 //in cells per second
+#define GHOST_SPEED PACMAN_SPEED*0.85
 
 using namespace lab309;
 
@@ -31,16 +31,16 @@ bool handleInput (Object *pacman) {
 		} else if (event.type == SDL_KEYUP) {
 			switch (event.key.keysym.sym) {
 				case SDLK_RIGHT:
-					pacman->setMoveDirection({1.0f, 0.0f});
+					pacman->setMoveDirection({1, 0});
 				break;
 				case SDLK_LEFT:
-					pacman->setMoveDirection({-1.0f, 0.0f});
+					pacman->setMoveDirection({-1, 0});
 				break;
 				case SDLK_UP:
-					pacman->setMoveDirection({0.0f, -1.0f});
+					pacman->setMoveDirection({0, -1});
 				break;
 				case SDLK_DOWN:
-					pacman->setMoveDirection({0.0f, 1.0f});
+					pacman->setMoveDirection({0, 1});
 				break;
 			}
 		} else if (event.type == SDL_MOUSEBUTTONUP) {
@@ -70,6 +70,7 @@ int main (int argc, char **args) {
 	Object	*pacman;
 	Vector<float> pacmanResetPos;
 	std::list<Ghost*> ghosts;
+	double dt;
 			
 	Window *window;
 	World *world;
@@ -79,6 +80,9 @@ int main (int argc, char **args) {
 	bool super = false;
 	unsigned int superTimeStamp;
 	unsigned int killStreak;
+	
+	float	pacmanSpeed,
+			ghostSpeed;
 	
 	int endGame = 0;
 			
@@ -100,6 +104,10 @@ int main (int argc, char **args) {
 	if (!world->readFromFile(args[1])) {
 		std::cout << "Nao foi possivel ler a partir do arquivo " << args[1] << std::endl;
 	}
+	
+	pacmanSpeed = (world->getCellHeight()+world->getCellWidth())/2.0*PACMAN_SPEED;
+	ghostSpeed = (world->getCellHeight()+world->getCellWidth())/2.0*GHOST_SPEED;
+	
 	//load walls
 	draw = world->getFromMesh(WALL_ID);
 	for (Vector<float> i : draw) {
@@ -123,25 +131,36 @@ int main (int argc, char **args) {
 	
 	//load agents
 	draw = world->getFromMesh(PACMAN_ID);
-	pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, PACMAN_ID, PACMAN_SPEED, draw.front());
+	pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, PACMAN_ID, pacmanSpeed, draw.front());
 	pacmanResetPos = pacman->getPos();
 	draw = world->getFromMesh(GHOST_ID);
 	for (Vector<float> g : draw) {
-		ghosts.push_front(new Ghost(texture_ghost, texture_ghost->w, texture_ghost->h, world->getCellWidth()*0.75, world->getCellHeight()*0.75, world, GHOST_ID, GHOST_SPEED, g));
+		ghosts.push_front(new Ghost(texture_ghost, texture_ghost->w, texture_ghost->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, GHOST_ID, ghostSpeed, g));
 	}
 		
 	running = true;
 	window->update();
+	dt = 0.0;
 	while (running) {
 		//std::cout << "handle input" << std::endl;	//debug
 		timeSeed();
 		running = handleInput(pacman);
 		endGame = 0;
 		
-		pacman->move(wall, SDL_GetTicks(), window->getTimeDelta());
+		pacman->move(wall, SDL_GetTicks(), dt);
 		//std::cout << "move pacman" << std::endl;	//debug
 		
+		//wear super effect off
+		if (super && SDL_GetTicks() - superTimeStamp > SUPERPILL_DURATION) {
+			super = false;
+			for (Ghost *i : ghosts) {
+				i->setSpeed(ghostSpeed);
+				i->setMoveDirection({0, 0});
+			}
+		}
+		
 		for (std::list<Ghost*>::iterator i = ghosts.begin(); i != ghosts.end(); i++) {
+			
 			//std::cout << "ghost think" << std::endl;	//debug
 			if (!super) {
 				(*i)->think(SDL_GetTicks());
@@ -149,7 +168,7 @@ int main (int argc, char **args) {
 				(*i)->flee(world->mapToNavmesh(pacman->getCenter()), SDL_GetTicks());
 			}	
 			//std::cout << "ghost move" << std::endl;	//debug
-			(*i)->move(SDL_GetTicks(), window->getTimeDelta());
+			(*i)->move(wall, SDL_GetTicks(), dt);
 			
 			if (collision(**i, *pacman)) {
 				if (!super) {
@@ -158,7 +177,7 @@ int main (int argc, char **args) {
 						world->remove(PACMAN_ID, world->mapToNavmesh(pacman->getCenter()));
 						world->setTrail(0, world->mapToNavmesh(pacman->getCenter()));
 						delete(pacman);
-						pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, PACMAN_ID, PACMAN_SPEED, pacmanResetPos);
+						pacman = new Object(texture_pacman, texture_pacman->w, texture_pacman->h, world->getCellWidth()*0.8, world->getCellHeight()*0.8, world, PACMAN_ID, pacmanSpeed, pacmanResetPos);
 						std::cout << "Lives: " << lives << std::endl;
 					} else {
 						std::cout << "GAME OVER" << std::endl;
@@ -175,15 +194,7 @@ int main (int argc, char **args) {
 					std::cout << "Score: " << score << std::endl;
 				}	
 			}
-		}
-		
-		//wear super effect off
-		if (super && SDL_GetTicks() - superTimeStamp > SUPERPILL_DURATION) {
-			super = false;
-			for (Ghost *i : ghosts) {
-				i->setSpeed(i->getSpeed()*SUPERSPEED_MULT);
-				i->setMoveDirection({0.0f, 0.0f});
-			}
+			//std::cout << "ghost collision" << std::endl;	//debug
 		}
 		
 		//draw background
@@ -193,6 +204,7 @@ int main (int argc, char **args) {
 			wall->setPos(i);
 			wall->blitTo(*window);
 		}
+		//std::cout << "background drawn" << std::endl;	//debug
 		//std::cout << wallsPos.size() << std::endl;	//debug
 		
 		//draw pills
@@ -210,6 +222,7 @@ int main (int argc, char **args) {
 				pill->blitTo(*window);
 			}	
 		}
+		//std::cout << "pills drawn" << std::endl;	//debug
 		
 		//draw superpills
 		draw = world->getFromMesh(SUPERPILL_ID);
@@ -226,13 +239,14 @@ int main (int argc, char **args) {
 				killStreak = 0;
 				for (Ghost *i : ghosts) {
 					i->setSpeed(i->getSpeed()/SUPERSPEED_MULT);
-					i->setMoveDirection(Vector<float>({0.0f, 0.0f}));
+					i->setMoveDirection({0, 0});
 				}
 				std::cout << "Score: " << score << std::endl;
 			} else {
 				superpill->blitTo(*window);
 			}
 		}
+		//std::cout << "superpills drawn" << std::endl;	//debug
 		
 		//draw pacman
 		if (!super) {
@@ -241,17 +255,24 @@ int main (int argc, char **args) {
 			superpacman->setPos(pacman->getPos());
 			superpacman->blitTo(*window);
 		}
+		//std::cout << "pacman drawn" << std::endl;	//debug
 		
 		//draw ghosts
 		for (Object *i : ghosts) {
 			i->blitTo(*window);
 		}
+		//std::cout << "ghosts drawn" << std::endl;	//debug
 		
 		if (endGame == 2) {
 			running = false;
 			std::cout << "VICTORY" << std::endl;
+		} else if (ghosts.empty()) {
+			running = false;
+			std::cout << "VICTORY" << std::endl;
 		}
 		
+		//std::cout << window->getTimeDelta() << std::endl;	//debug
+		dt = window->getTimeDelta();
 		window->update();
 	}
 	

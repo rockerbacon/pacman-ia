@@ -5,6 +5,8 @@
 #define LIMIT_30FPS 33
 #define LIMIT_NONE 0
 
+#define TIME_RESOLUTION 8
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 

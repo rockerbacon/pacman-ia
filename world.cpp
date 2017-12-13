@@ -2,8 +2,16 @@
 #include <iostream>
 #include <fstream>
 #include <math.h>
+#include <SDL2/SDL.h>
 
 using namespace lab309;
+
+#define COLLISION_BOX_X_TOLERANCE 0.55
+#define COLLISION_BOX_Y_TOLERANCE 0.55
+
+#define QUEUEDMOVE_WINDOW 400
+
+const Vector<int> Object::directions[4] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
 /*WORLD*/
 World::Cell::Cell (void) {
@@ -23,7 +31,7 @@ World::World (const Window &window, size_t navmeshWidth, size_t navmeshHeight) {
 	this->navmesh = Matrix<Cell>(navmeshHeight, navmeshWidth);
 	for (size_t i = 0; i < navmeshHeight; i++) {
 		for (size_t j = 0; j < navmeshWidth; j++) {
-			this->navmesh[i][j] = 0;
+			this->navmesh[i][j] = Cell();
 		}
 	}
 }
@@ -170,17 +178,24 @@ Object::Object (SDL_Surface *texture, int rectWidth, int rectHeight, int display
 	this->speed = speed;
 	this->setPos(initialPos);
 	this->currentCell = world->mapToNavmesh(initialPos);
-	this->moveDirection = {0.0f, 0.0f};
+	this->moveDirection = {0, 0};
+	this->queuedMove = false;
 }
 
-void Object::setMoveDirection (const Vector<float> &moveDirection) {
-	if (fabs(moveDirection[_X]) > fabs(moveDirection[_Y]) && moveDirection[_X] != 0) {
-		this->moveDirection[_X] = moveDirection[_X]/fabs(moveDirection[_X]);
-		this->moveDirection[_Y] = 0.0f;
-	} else if (moveDirection[_Y] != 0) {
-		this->moveDirection[_X] = 0.0f;
-		this->moveDirection[_Y] = moveDirection[_Y]/fabs(moveDirection[_Y]);
+void Object::setMoveDirection (const Vector<int> &moveDirection) {
+	if (this->moveDirection == -1*moveDirection || this->fitsCell() && this->canMove(moveDirection)) {
+		this->moveDirection = moveDirection;
+		this->queuedMove = false;
+	} else {
+		this->moveDirectionQueue = moveDirection;
+		this->queuedMove = true;
+		this->queuedMoveTimeStamp = SDL_GetTicks();
 	}
+}
+
+bool Object::canMove (const Vector<int> &moveDirection) const {
+	World::Cell c = this->world->getCell(this->currentCell+moveDirection);
+	return (c.contents & WALL_ID) == 0 && (c.contents & this->id) == 0;
 }
 
 float Object::getSpeed (void) const {
@@ -191,50 +206,69 @@ Vector<int> Object::getCurrentCell (void) const {
 	return this->currentCell;
 }
 
-Vector<float> Object::getMoveDirection (void) const {
+bool Object::fitsCell (void) const {
+	Vector<float> corners[4];
+	Vector<float> center = this->getCenter();
+	float xOffset = (float)this->getDisplayWidth()*(1.0-COLLISION_BOX_X_TOLERANCE);
+	float yOffset = (float)this->getDisplayHeight()*(1.0-COLLISION_BOX_Y_TOLERANCE);
+	bool fits;
+	size_t i;
+	
+	corners[0] = center+Vector<float>({xOffset, yOffset});
+	corners[1] = center+Vector<float>({-xOffset, yOffset});
+	corners[2] = center+Vector<float>({xOffset, -yOffset});
+	corners[3] = center+Vector<float>({-xOffset, -yOffset});
+	
+	fits = true;
+	i = 0;
+	while(fits && i < 3) {
+		if (this->world->mapToNavmesh(corners[i]) != this->world->mapToNavmesh(corners[i+1])) {
+			fits = false;
+		}
+		i++;
+	}
+	return fits;
+}
+
+Vector<int> Object::getMoveDirection (void) const {
 	return this->moveDirection;
 }
 
 void Object::move (Sprite *wall, unsigned long int currentTime, double elapsedTime) {
-	Vector<float> oldPosition = this->getPos();
-	Vector<float> corners[4];
-	float xOffset = (float)this->getDisplayWidth()*COLLISION_BOX_X_TOLERANCE;
-	float yOffset = (float)this->getDisplayHeight()*COLLISION_BOX_Y_TOLERANCE;
-	Vector<int> nextCell;
-	Vector<int> oldCell = this->currentCell;
+	bool fits = this->fitsCell();
 	
-	//std::cout << this->speed*elapsedTime << std::endl;	//debug
-	this->translate(this->speed*elapsedTime*this->moveDirection);
-	this->currentCell = this->world->mapToNavmesh(this->getCenter());
-	
-	//std::cout << this->currentCell[_X] << " " << this->currentCell[_Y] << std::endl;	//debug
-	
-	if (oldCell != this->currentCell) {
-		this->world->remove(this->id, oldCell);
-		this->world->add(this->id, this->currentCell);
-		if (this->id & PACMAN_ID) {
-			this->world->setTrail(currentTime, oldCell);
-		}
+	//if (this->id & PACMAN_ID) std::cout << SDL_GetTicks() - this->queuedMoveTimeStamp << std::endl;	//debug
+	if (fits && this->queuedMove && currentTime - this->queuedMoveTimeStamp < QUEUEDMOVE_WINDOW) {
+		this->setMoveDirection(this->moveDirectionQueue);
 	}
 	
-	corners[0] = this->getCenter()+Vector<float>({xOffset, yOffset});
-	corners[1] = this->getCenter()+Vector<float>({-xOffset, yOffset});
-	corners[2] = this->getCenter()+Vector<float>({xOffset, -yOffset});
-	corners[3] = this->getCenter()+Vector<float>({-xOffset, -yOffset});
-	
-	//check collision in any of the corners
-	for (size_t i = 0; i < 4; i++) {
-		nextCell = this->world->mapToNavmesh(corners[i])+this->moveDirection;
-		if (this->world->getCell(nextCell).contents & WALL_ID) {
+	if (!fits || this->canMove(this->moveDirection)) {
+		Vector<float> oldPosition = this->getPos();
+		Vector<int> oldCell = this->currentCell;
+		Vector<int> nextCell = this->currentCell+this->moveDirection;
+		
+		this->translate(Vector<float>(this->speed*elapsedTime*this->moveDirection));
+		this->currentCell = this->world->mapToNavmesh(this->getCenter());
+		
+		if (oldCell != this->currentCell) {
+			//safeguard for excessive movement that may happen if the elapsed time is too big
 			wall->setPos(this->world->mapToPixel(nextCell));
-			if (collision((Sprite)(*this), *wall)) {
-				//fallback because it's not possible to move inside a wall
-				//std::cout << "wall" << std::endl;	//debug
-				this->setPos(oldPosition);
+			if ((this->world->getCell(nextCell).contents & WALL_ID) && collision((Sprite)(*this), *wall)) {
+				this->setPos(this->world->mapToPixel(oldCell));
 				this->currentCell = oldCell;
-				break;
-			}
-		}
+			} else {
+			
+				this->world->remove(this->id, oldCell);
+				this->world->add(this->id, this->currentCell);
+				if (this->id & PACMAN_ID) {
+					this->world->setTrail(currentTime, oldCell);
+				} else if (this->id & GHOST_ID) {
+					this->world->setGhostTrail(currentTime, oldCell);
+				}
+				
+			}	
+		}	
+		
 	}
 }
 

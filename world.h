@@ -22,9 +22,6 @@
 #define PILL_CELL		'.'
 #define SUPERPILL_CELL	'*'
 
-#define COLLISION_BOX_X_TOLERANCE 0.17
-#define COLLISION_BOX_Y_TOLERANCE 0.17
-
 namespace lab309 {
 	
 	class World {
@@ -92,19 +89,26 @@ namespace lab309 {
 			int id;
 			float speed;	//in pixels/s
 			Vector<int> currentCell;
-			Vector<float> moveDirection;
+			Vector<int> moveDirection;
+			Vector<int> moveDirectionQueue;
+			bool queuedMove;
+			unsigned int queuedMoveTimeStamp;
 			
 		public:
+			static const Vector<int> directions[4];
 			/*CONSTRUCTORS*/
 			Object (SDL_Surface *texture, int rectWidth, int rectHeight, int displayWidth, int displayHeight, World *world, int id, float speed, const Vector<float> &initialPos);
 			
 			/*SETTERS*/
-			void setMoveDirection (const Vector<float> &moveDirection);
+			void setMoveDirection (const Vector<int> &moveDirection);
 			
 			/*GETTERS*/
+			bool canMove (const Vector<int> &moveDirection) const;
+			
 			float getSpeed (void) const;
 			Vector<int> getCurrentCell (void) const;
-			Vector<float> getMoveDirection (void) const;
+			bool fitsCell (void) const;
+			Vector<int> getMoveDirection (void) const;
 			
 			/*METHODS*/
 			void move (Sprite *wall, unsigned long int currentTime, double elapsedTime);	//current time in miliseconds, elapsed time in seconds
